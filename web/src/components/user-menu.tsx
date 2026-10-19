@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, LogOut, Settings, UserRound } from "lucide-react";
+import { LayoutDashboard, LogOut, Plus, Settings, UserRound } from "lucide-react";
 import { logout } from "@/app/actions/auth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -30,6 +30,12 @@ export function UserMenu({ user }: { user: Pick<CurrentUser, "id" | "name" | "em
           <span className="text-xs font-normal text-muted-foreground">{user.email}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild className="sm:hidden">
+          <Link href="/gigs/new">
+            <Plus />
+            Post a gig
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href="/dashboard">
             <LayoutDashboard />

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Navbar } from "@/components/navbar";
 import "./globals.css";
@@ -30,8 +31,21 @@ export default function RootLayout({
       >
         <Navbar />
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
-        <footer className="border-t py-6 text-center text-sm text-muted-foreground">
-          UniGig — a campus freelance and skill exchange
+        <footer className="border-t">
+          <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-2 px-4 py-6 text-sm text-muted-foreground sm:flex-row">
+            <span>UniGig — a campus freelance and skill exchange</span>
+            <nav className="flex gap-4">
+              <Link href="/gigs" className="hover:text-foreground">
+                Browse gigs
+              </Link>
+              <Link href="/gigs/new" className="hover:text-foreground">
+                Post a gig
+              </Link>
+              <Link href="/dashboard" className="hover:text-foreground">
+                Dashboard
+              </Link>
+            </nav>
+          </div>
         </footer>
       </body>
     </html>

@@ -274,3 +274,27 @@ export function listReviewsForFreelancer(userId: number) {
     .orderBy(desc(reviews.createdAt))
     .all();
 }
+
+/** Headline numbers for the landing page. */
+export function getPlatformStats() {
+  return db
+    .select({
+      openGigs: sql<number>`(SELECT count(*) FROM gigs WHERE status = 'OPEN')`.mapWith(Number),
+      students: sql<number>`(SELECT count(*) FROM users)`.mapWith(Number),
+      completedGigs: sql<number>`(SELECT count(*) FROM gigs WHERE status = 'COMPLETED')`.mapWith(Number),
+      paidOut: sql<number>`(SELECT coalesce(sum(b.amount), 0) FROM bids b JOIN gigs g ON g.id = b.gig_id WHERE b.status = 'ACCEPTED' AND g.status = 'COMPLETED')`.mapWith(Number),
+    })
+    .from(sql`(SELECT 1)`)
+    .get()!;
+}
+
+/** Best-rated freelancers with at least one review (the DA-2 leaderboard idea). */
+export function listTopFreelancers(limit = 3) {
+  return db
+    .select({ id: users.id, name: users.name, dept: users.dept, rating: users.rating, reviewCount })
+    .from(users)
+    .where(sql`${reviewCount} > 0`)
+    .orderBy(desc(users.rating), desc(reviewCount), asc(users.name))
+    .limit(limit)
+    .all();
+}
