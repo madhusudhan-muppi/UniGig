@@ -12,15 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { CurrentUser } from "@/lib/auth";
-
-export function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]!.toUpperCase())
-    .join("");
-}
+import { initials } from "@/lib/format";
 
 export function UserMenu({ user }: { user: Pick<CurrentUser, "name" | "email"> }) {
   return (

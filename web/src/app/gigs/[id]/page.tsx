@@ -3,10 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarClock, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { BidForm } from "@/components/bid-form";
+import { BidList } from "@/components/bid-list";
 import { StatusBadge } from "@/components/status-badge";
-import { getGig } from "@/db/queries";
+import { YourBid } from "@/components/your-bid";
+import { getGig, getUserBid, listBidsForGig } from "@/db/queries";
 import { getCurrentUser } from "@/lib/auth";
 import { deadlineLabel, formatDate, formatRupees, timeFromNow } from "@/lib/format";
 
@@ -28,6 +32,7 @@ export default async function GigPage({ params }: Props) {
 
   const user = await getCurrentUser();
   const isOwner = user?.id === gig.clientId;
+  const myBid = user && !isOwner ? getUserBid(gig.id, user.id) : undefined;
 
   return (
     <div className="flex flex-col gap-6">
@@ -51,6 +56,32 @@ export default async function GigPage({ params }: Props) {
           </p>
           <Separator />
           <p className="leading-relaxed whitespace-pre-line">{gig.description}</p>
+
+          <section className="mt-4 flex flex-col gap-4">
+            {isOwner ? (
+              <>
+                <h2 className="text-xl font-semibold tracking-tight">
+                  Bids <span className="text-muted-foreground">({gig.bidCount})</span>
+                </h2>
+                <BidList bids={listBidsForGig(gig.id)} budget={gig.budget} />
+              </>
+            ) : myBid ? (
+              <YourBid bid={myBid} />
+            ) : gig.status !== "OPEN" ? (
+              <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                This gig is no longer accepting bids.
+              </p>
+            ) : user ? (
+              <BidForm gigId={gig.id} budget={gig.budget} />
+            ) : (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed p-8 text-center">
+                <p className="font-medium">Interested in this gig?</p>
+                <Button asChild>
+                  <Link href={`/login?next=${encodeURIComponent(`/gigs/${gig.id}`)}`}>Log in to place a bid</Link>
+                </Button>
+              </div>
+            )}
+          </section>
         </div>
 
         <aside className="flex flex-col gap-4">

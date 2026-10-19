@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "./index";
-import { gigs, users } from "./schema";
+import { bids, gigs, reviews, users } from "./schema";
 
 const bidCount = sql<number>`(SELECT count(*) FROM bids WHERE bids.gig_id = ${gigs.id})`.mapWith(Number);
 
@@ -71,5 +71,47 @@ export function getGig(id: number) {
     .from(gigs)
     .innerJoin(users, eq(users.id, gigs.clientId))
     .where(eq(gigs.id, id))
+    .get();
+}
+
+const reviewCount = sql<number>`(SELECT count(*) FROM ${reviews} WHERE ${reviews.freelancerId} = ${users.id})`.mapWith(Number);
+
+/** All bids on a gig with the bidder's profile: accepted, then pending, then rejected; oldest first. */
+export function listBidsForGig(gigId: number) {
+  return db
+    .select({
+      id: bids.id,
+      amount: bids.amount,
+      message: bids.message,
+      timeframeDays: bids.timeframeDays,
+      status: bids.status,
+      createdAt: bids.createdAt,
+      freelancer: {
+        id: users.id,
+        name: users.name,
+        dept: users.dept,
+        studyYear: users.studyYear,
+        rating: users.rating,
+        reviewCount,
+      },
+    })
+    .from(bids)
+    .innerJoin(users, eq(users.id, bids.freelancerId))
+    .where(eq(bids.gigId, gigId))
+    .orderBy(
+      sql`CASE ${bids.status} WHEN 'ACCEPTED' THEN 0 WHEN 'PENDING' THEN 1 ELSE 2 END`,
+      asc(bids.createdAt),
+    )
+    .all();
+}
+
+export type GigBid = ReturnType<typeof listBidsForGig>[number];
+
+/** The bid a user placed on a gig, if any. */
+export function getUserBid(gigId: number, userId: number) {
+  return db
+    .select()
+    .from(bids)
+    .where(and(eq(bids.gigId, gigId), eq(bids.freelancerId, userId)))
     .get();
 }
