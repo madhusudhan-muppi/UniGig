@@ -2,7 +2,9 @@ import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "./index";
 import { bids, gigs, reviews, users } from "./schema";
 
-const bidCount = sql<number>`(SELECT count(*) FROM bids WHERE bids.gig_id = ${gigs.id})`.mapWith(Number);
+// Raw subqueries name "gigs.id" explicitly: drizzle leaves columns unqualified in
+// single-table selects, which would be ambiguous inside a subquery that joins tables.
+const bidCount = sql<number>`(SELECT count(*) FROM bids WHERE bids.gig_id = gigs.id)`.mapWith(Number);
 
 const gigSummary = {
   id: gigs.id,
@@ -74,7 +76,7 @@ export function getGig(id: number) {
     .get();
 }
 
-const reviewCount = sql<number>`(SELECT count(*) FROM ${reviews} WHERE ${reviews.freelancerId} = ${users.id})`.mapWith(Number);
+const reviewCount = sql<number>`(SELECT count(*) FROM reviews WHERE reviews.freelancer_id = users.id)`.mapWith(Number);
 
 /** All bids on a gig with the bidder's profile: accepted, then pending, then rejected; oldest first. */
 export function listBidsForGig(gigId: number) {
@@ -157,3 +159,63 @@ export function getReview(gigId: number) {
     .where(eq(reviews.gigId, gigId))
     .get();
 }
+
+// Active work first (open, then in progress), then finished gigs; newest first within each.
+const statusOrder = (column: typeof gigs.status) =>
+  sql`CASE ${column} WHEN 'OPEN' THEN 0 WHEN 'IN_PROGRESS' THEN 1 WHEN 'COMPLETED' THEN 2 ELSE 3 END`;
+
+/** Every gig a user has posted, with bid counts, who was hired and whether it was reviewed. */
+export function listGigsByClient(userId: number) {
+  return db
+    .select({
+      id: gigs.id,
+      title: gigs.title,
+      category: gigs.category,
+      budget: gigs.budget,
+      status: gigs.status,
+      deadline: gigs.deadline,
+      createdAt: gigs.createdAt,
+      bidCount,
+      pendingBidCount: sql<number>`(SELECT count(*) FROM bids WHERE bids.gig_id = gigs.id AND bids.status = 'PENDING')`.mapWith(Number),
+      hiredName: sql<string | null>`(SELECT u.name FROM bids b JOIN users u ON u.id = b.freelancer_id WHERE b.gig_id = gigs.id AND b.status = 'ACCEPTED')`,
+      reviewed: sql<boolean>`EXISTS (SELECT 1 FROM reviews r WHERE r.gig_id = gigs.id)`.mapWith(Boolean),
+    })
+    .from(gigs)
+    .where(eq(gigs.clientId, userId))
+    .orderBy(statusOrder(gigs.status), desc(gigs.createdAt))
+    .all();
+}
+
+export type ClientGig = ReturnType<typeof listGigsByClient>[number];
+
+/** Every bid a user has placed, with the gig and its client. */
+export function listBidsByFreelancer(userId: number) {
+  return db
+    .select({
+      id: bids.id,
+      amount: bids.amount,
+      timeframeDays: bids.timeframeDays,
+      status: bids.status,
+      createdAt: bids.createdAt,
+      gig: {
+        id: gigs.id,
+        title: gigs.title,
+        category: gigs.category,
+        budget: gigs.budget,
+        status: gigs.status,
+      },
+      clientName: users.name,
+    })
+    .from(bids)
+    .innerJoin(gigs, eq(gigs.id, bids.gigId))
+    .innerJoin(users, eq(users.id, gigs.clientId))
+    .where(eq(bids.freelancerId, userId))
+    .orderBy(
+      sql`CASE ${bids.status} WHEN 'ACCEPTED' THEN 0 WHEN 'PENDING' THEN 1 ELSE 2 END`,
+      statusOrder(gigs.status),
+      desc(bids.createdAt),
+    )
+    .all();
+}
+
+export type FreelancerBid = ReturnType<typeof listBidsByFreelancer>[number];

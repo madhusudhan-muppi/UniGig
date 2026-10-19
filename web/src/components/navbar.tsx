@@ -20,7 +20,12 @@ export async function Navbar() {
             <Link href="/gigs/new">Post a gig</Link>
           </Button>
           {user ? (
-            <UserMenu user={user} />
+            <>
+              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+                <Link href="/dashboard">Dashboard</Link>
+              </Button>
+              <UserMenu user={user} />
+            </>
           ) : (
             <>
               <Button asChild variant="ghost" size="sm">
