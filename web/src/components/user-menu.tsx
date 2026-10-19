@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, LogOut } from "lucide-react";
+import { LayoutDashboard, LogOut, Settings, UserRound } from "lucide-react";
 import { logout } from "@/app/actions/auth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -15,7 +15,7 @@ import {
 import type { CurrentUser } from "@/lib/auth";
 import { initials } from "@/lib/format";
 
-export function UserMenu({ user }: { user: Pick<CurrentUser, "name" | "email"> }) {
+export function UserMenu({ user }: { user: Pick<CurrentUser, "id" | "name" | "email"> }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -34,6 +34,18 @@ export function UserMenu({ user }: { user: Pick<CurrentUser, "name" | "email"> }
           <Link href="/dashboard">
             <LayoutDashboard />
             Dashboard
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/users/${user.id}`}>
+            <UserRound />
+            My profile
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/profile">
+            <Settings />
+            Edit profile
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

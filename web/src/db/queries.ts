@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "./index";
-import { bids, gigs, reviews, users } from "./schema";
+import { bids, gigs, reviews, skills, users, userSkills } from "./schema";
 
 // Raw subqueries name "gigs.id" explicitly: drizzle leaves columns unqualified in
 // single-table selects, which would be ambiguous inside a subquery that joins tables.
@@ -219,3 +219,58 @@ export function listBidsByFreelancer(userId: number) {
 }
 
 export type FreelancerBid = ReturnType<typeof listBidsByFreelancer>[number];
+
+/** Public profile of a user — never includes email or phone. */
+export function getProfile(userId: number) {
+  return db
+    .select({
+      id: users.id,
+      name: users.name,
+      dept: users.dept,
+      studyYear: users.studyYear,
+      bio: users.bio,
+      rating: users.rating,
+      createdAt: users.createdAt,
+      reviewCount,
+      gigsCompleted: sql<number>`(SELECT count(*) FROM bids b JOIN gigs g ON g.id = b.gig_id WHERE b.freelancer_id = users.id AND b.status = 'ACCEPTED' AND g.status = 'COMPLETED')`.mapWith(Number),
+      gigsPosted: sql<number>`(SELECT count(*) FROM gigs g WHERE g.client_id = users.id AND g.status <> 'CANCELLED')`.mapWith(Number),
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .get();
+}
+
+/** Every skill in the catalogue, grouped for display by category then name. */
+export function listAllSkills() {
+  return db.select().from(skills).orderBy(asc(skills.category), asc(skills.name)).all();
+}
+
+/** The skills a user offers. */
+export function listUserSkills(userId: number) {
+  return db
+    .select({ id: skills.id, name: skills.name, category: skills.category })
+    .from(userSkills)
+    .innerJoin(skills, eq(skills.id, userSkills.skillId))
+    .where(eq(userSkills.userId, userId))
+    .orderBy(asc(skills.category), asc(skills.name))
+    .all();
+}
+
+/** Reviews a user received as a freelancer, newest first. */
+export function listReviewsForFreelancer(userId: number) {
+  return db
+    .select({
+      id: reviews.id,
+      rating: reviews.rating,
+      comment: reviews.comment,
+      createdAt: reviews.createdAt,
+      gig: { id: gigs.id, title: gigs.title },
+      clientName: users.name,
+    })
+    .from(reviews)
+    .innerJoin(gigs, eq(gigs.id, reviews.gigId))
+    .innerJoin(users, eq(users.id, reviews.clientId))
+    .where(eq(reviews.freelancerId, userId))
+    .orderBy(desc(reviews.createdAt))
+    .all();
+}

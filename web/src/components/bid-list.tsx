@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Clock, Star } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,7 +48,9 @@ export function BidList({ bids, budget, canHire }: { bids: GigBid[]; budget: num
                       <AvatarFallback>{initials(bid.freelancer.name)}</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col">
-                      <span className="font-medium">{bid.freelancer.name}</span>
+                      <Link href={`/users/${bid.freelancer.id}`} className="w-fit font-medium hover:underline">
+                        {bid.freelancer.name}
+                      </Link>
                       <span className="text-xs text-muted-foreground">
                         {[bid.freelancer.dept, bid.freelancer.studyYear && `Year ${bid.freelancer.studyYear}`]
                           .filter(Boolean)

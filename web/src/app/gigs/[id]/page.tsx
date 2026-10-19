@@ -148,7 +148,9 @@ export default async function GigPage({ params }: Props) {
               <CardTitle className="text-sm font-medium text-muted-foreground">Posted by</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-1">
-              <span className="font-medium">{gig.client.name}</span>
+              <Link href={`/users/${gig.client.id}`} className="w-fit font-medium hover:underline">
+                {gig.client.name}
+              </Link>
               <span className="text-sm text-muted-foreground">
                 {[gig.client.dept, gig.client.studyYear && `Year ${gig.client.studyYear}`]
                   .filter(Boolean)

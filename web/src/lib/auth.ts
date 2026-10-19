@@ -51,6 +51,7 @@ export const getCurrentUser = cache(async () => {
         phone: users.phone,
         dept: users.dept,
         studyYear: users.studyYear,
+        bio: users.bio,
         rating: users.rating,
       },
     })
