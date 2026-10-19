@@ -141,3 +141,19 @@ export function getHire(gigId: number) {
     .where(and(eq(bids.gigId, gigId), eq(bids.status, "ACCEPTED")))
     .get();
 }
+
+/** The review left on a gig, with the reviewer's name, if any. */
+export function getReview(gigId: number) {
+  return db
+    .select({
+      id: reviews.id,
+      rating: reviews.rating,
+      comment: reviews.comment,
+      createdAt: reviews.createdAt,
+      clientName: users.name,
+    })
+    .from(reviews)
+    .innerJoin(users, eq(users.id, reviews.clientId))
+    .where(eq(reviews.gigId, gigId))
+    .get();
+}

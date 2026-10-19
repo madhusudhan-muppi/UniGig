@@ -10,10 +10,13 @@ import { BidForm } from "@/components/bid-form";
 import { BidList } from "@/components/bid-list";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { ContactCard } from "@/components/contact-card";
+import { ReviewCard } from "@/components/review-card";
+import { ReviewForm } from "@/components/review-form";
 import { StatusBadge } from "@/components/status-badge";
 import { YourBid } from "@/components/your-bid";
 import { cancelGig } from "@/app/actions/gigs";
-import { getContact, getGig, getHire, getUserBid, listBidsForGig } from "@/db/queries";
+import { completeGig } from "@/app/actions/reviews";
+import { getContact, getGig, getHire, getReview, getUserBid, listBidsForGig } from "@/db/queries";
 import { getCurrentUser } from "@/lib/auth";
 import { deadlineLabel, formatDate, formatRupees, timeFromNow } from "@/lib/format";
 
@@ -37,8 +40,9 @@ export default async function GigPage({ params }: Props) {
   const isOwner = user?.id === gig.clientId;
   const myBid = user && !isOwner ? getUserBid(gig.id, user.id) : undefined;
   // Contact details are revealed only between the client and the hired freelancer.
-  const hire = isOwner ? getHire(gig.id) : undefined;
+  const hire = gig.status === "IN_PROGRESS" || gig.status === "COMPLETED" ? getHire(gig.id) : undefined;
   const clientContact = myBid?.status === "ACCEPTED" ? getContact(gig.clientId) : undefined;
+  const review = gig.status === "COMPLETED" ? getReview(gig.id) : undefined;
 
   return (
     <div className="flex flex-col gap-6">
@@ -66,10 +70,18 @@ export default async function GigPage({ params }: Props) {
           <section className="mt-4 flex flex-col gap-4">
             {isOwner ? (
               <>
+                {hire && gig.status === "COMPLETED" && !review && (
+                  <ReviewForm gigId={gig.id} freelancerName={hire.freelancer.name} />
+                )}
+                {review && <ReviewCard review={review} freelancerName={hire?.freelancer.name} />}
                 {hire && (
                   <ContactCard
                     title={`You hired ${hire.freelancer.name}`}
-                    description={`Agreed price ${formatRupees(hire.amount)}, ${hire.timeframeDays} ${hire.timeframeDays === 1 ? "day" : "days"} to deliver. Contact them to get started.`}
+                    description={
+                      gig.status === "COMPLETED"
+                        ? `Completed for ${formatRupees(hire.amount)}.`
+                        : `Agreed price ${formatRupees(hire.amount)}, ${hire.timeframeDays} ${hire.timeframeDays === 1 ? "day" : "days"} to deliver. Contact them to get started, then mark the gig completed once the work is delivered.`
+                    }
                     contact={hire.freelancer}
                   />
                 )}
@@ -80,19 +92,27 @@ export default async function GigPage({ params }: Props) {
               </>
             ) : myBid ? (
               <>
+                {review && <ReviewCard review={review} freelancerName={hire?.freelancer.name} />}
                 {clientContact && (
                   <ContactCard
-                    title="You're hired!"
-                    description="Reach out to the client to agree on the details and get started."
+                    title={gig.status === "COMPLETED" ? "Your client" : "You're hired!"}
+                    description={
+                      gig.status === "COMPLETED"
+                        ? "The client marked this gig completed."
+                        : "Reach out to the client to agree on the details and get started."
+                    }
                     contact={clientContact}
                   />
                 )}
-                <YourBid bid={myBid} />
+                <YourBid bid={myBid} gigStatus={gig.status} />
               </>
             ) : gig.status !== "OPEN" ? (
-              <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-                This gig is no longer accepting bids.
-              </p>
+              <>
+                {review && <ReviewCard review={review} freelancerName={hire?.freelancer.name} />}
+                <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  This gig is no longer accepting bids.
+                </p>
+              </>
             ) : user ? (
               <BidForm gigId={gig.id} budget={gig.budget} />
             ) : (
@@ -143,23 +163,39 @@ export default async function GigPage({ params }: Props) {
             </CardContent>
           </Card>
 
-          {isOwner && gig.status === "OPEN" && (
+          {isOwner && (gig.status === "OPEN" || gig.status === "IN_PROGRESS") && (
             <Card className="gap-3">
               <CardHeader>
                 <CardTitle className="text-sm font-medium text-muted-foreground">Manage gig</CardTitle>
               </CardHeader>
               <CardContent>
-                <form action={cancelGig.bind(null, gig.id)}>
-                  <ConfirmSubmit
-                    variant="outline"
-                    size="sm"
-                    className="w-full text-destructive"
-                    pendingLabel="Cancelling…"
-                    confirm="Cancel this gig? It will be removed from the browse page and pending bids will be declined."
-                  >
-                    Cancel gig
-                  </ConfirmSubmit>
-                </form>
+                {gig.status === "OPEN" ? (
+                  <form action={cancelGig.bind(null, gig.id)}>
+                    <ConfirmSubmit
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-destructive"
+                      pendingLabel="Cancelling…"
+                      confirm="Cancel this gig? It will be removed from the browse page and pending bids will be declined."
+                    >
+                      Cancel gig
+                    </ConfirmSubmit>
+                  </form>
+                ) : (
+                  <form action={completeGig.bind(null, gig.id)} className="flex flex-col gap-2">
+                    <ConfirmSubmit
+                      size="sm"
+                      className="w-full"
+                      pendingLabel="Saving…"
+                      confirm="Mark this gig as completed? Do this once the work has been delivered."
+                    >
+                      Mark as completed
+                    </ConfirmSubmit>
+                    <p className="text-xs text-muted-foreground">
+                      Once completed, you can leave a review for the freelancer.
+                    </p>
+                  </form>
+                )}
               </CardContent>
             </Card>
           )}

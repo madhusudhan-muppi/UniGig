@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/status-badge";
 import { withdrawBid } from "@/app/actions/bids";
-import type { Bid } from "@/db/schema";
+import type { Bid, GigStatus } from "@/db/schema";
 import { formatRupees, timeFromNow } from "@/lib/format";
 
 const statusNote = {
@@ -13,7 +13,12 @@ const statusNote = {
 } as const;
 
 /** A freelancer's own bid on a gig, with the option to withdraw while pending. */
-export function YourBid({ bid }: { bid: Bid }) {
+export function YourBid({ bid, gigStatus }: { bid: Bid; gigStatus: GigStatus }) {
+  const note =
+    bid.status === "ACCEPTED" && gigStatus === "COMPLETED"
+      ? "Gig completed — nice work!"
+      : statusNote[bid.status];
+
   return (
     <Card>
       <CardHeader>
@@ -21,7 +26,7 @@ export function YourBid({ bid }: { bid: Bid }) {
           <CardTitle>Your bid</CardTitle>
           <StatusBadge status={bid.status} />
         </div>
-        <CardDescription>{statusNote[bid.status]}</CardDescription>
+        <CardDescription>{note}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-4">
