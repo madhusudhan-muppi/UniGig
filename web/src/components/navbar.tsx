@@ -13,6 +13,12 @@ export async function Navbar() {
           Uni<span className="text-primary/60">Gig</span>
         </Link>
         <nav className="flex items-center gap-2">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/gigs">Browse gigs</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
+            <Link href="/gigs/new">Post a gig</Link>
+          </Button>
           {user ? (
             <UserMenu user={user} />
           ) : (

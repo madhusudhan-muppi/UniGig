@@ -6,8 +6,12 @@ import {
   real,
   sqliteTable,
   text,
-  unique,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
+import { BID_STATUSES, GIG_STATUSES } from "../lib/constants";
+
+export { BID_STATUSES, CATEGORIES, GIG_STATUSES } from "../lib/constants";
+export type { BidStatus, GigStatus } from "../lib/constants";
 
 // Roles overlap: every user can post gigs (client) and bid on gigs (freelancer),
 // so there is no user_type column like in the DA-2 Oracle schema.
@@ -22,7 +26,7 @@ export const users = sqliteTable(
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     name: text("name").notNull(),
-    email: text("email").notNull().unique(),
+    email: text("email").notNull(),
     passwordHash: text("password_hash").notNull(),
     phone: text("phone"),
     dept: text("dept"),
@@ -33,6 +37,7 @@ export const users = sqliteTable(
     createdAt: createdAt(),
   },
   (t) => [
+    uniqueIndex("users_email_unique").on(t.email),
     check("users_study_year", sql`${t.studyYear} IS NULL OR ${t.studyYear} BETWEEN 1 AND 5`),
     check("users_rating", sql`${t.rating} BETWEEN 0 AND 5`),
   ],
@@ -46,11 +51,15 @@ export const sessions = sqliteTable("sessions", {
   expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
 });
 
-export const skills = sqliteTable("skills", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull().unique(),
-  category: text("category").notNull(),
-});
+export const skills = sqliteTable(
+  "skills",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+    category: text("category").notNull(),
+  },
+  (t) => [uniqueIndex("skills_name_unique").on(t.name)],
+);
 
 // Resolves the M:N relationship USER --HAS-- SKILL.
 export const userSkills = sqliteTable(
@@ -65,18 +74,6 @@ export const userSkills = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.userId, t.skillId] })],
 );
-
-export const GIG_STATUSES = ["OPEN", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as const;
-export type GigStatus = (typeof GIG_STATUSES)[number];
-
-export const CATEGORIES = [
-  "Creative",
-  "Programming",
-  "Writing",
-  "Tutoring",
-  "Electronics",
-  "Other",
-] as const;
 
 export const gigs = sqliteTable(
   "gigs",
@@ -97,9 +94,6 @@ export const gigs = sqliteTable(
   (t) => [check("gigs_budget", sql`${t.budget} > 0`)],
 );
 
-export const BID_STATUSES = ["PENDING", "ACCEPTED", "REJECTED"] as const;
-export type BidStatus = (typeof BID_STATUSES)[number];
-
 export const bids = sqliteTable(
   "bids",
   {
@@ -118,7 +112,7 @@ export const bids = sqliteTable(
   },
   (t) => [
     // A freelancer can bid only once per gig.
-    unique("bids_once_per_gig").on(t.gigId, t.freelancerId),
+    uniqueIndex("bids_once_per_gig").on(t.gigId, t.freelancerId),
     check("bids_amount", sql`${t.amount} > 0`),
     check("bids_timeframe", sql`${t.timeframeDays} > 0`),
   ],
@@ -128,10 +122,8 @@ export const reviews = sqliteTable(
   "reviews",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
-    // One review per gig.
     gigId: integer("gig_id")
       .notNull()
-      .unique()
       .references(() => gigs.id, { onDelete: "cascade" }),
     clientId: integer("client_id")
       .notNull()
@@ -143,7 +135,11 @@ export const reviews = sqliteTable(
     comment: text("comment"),
     createdAt: createdAt(),
   },
-  (t) => [check("reviews_rating", sql`${t.rating} BETWEEN 1 AND 5`)],
+  (t) => [
+    // One review per gig.
+    uniqueIndex("reviews_gig_id_unique").on(t.gigId),
+    check("reviews_rating", sql`${t.rating} BETWEEN 1 AND 5`),
+  ],
 );
 
 export type User = typeof users.$inferSelect;
