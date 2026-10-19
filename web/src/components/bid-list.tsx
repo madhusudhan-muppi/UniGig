@@ -1,7 +1,9 @@
 import { Clock, Star } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmSubmit } from "@/components/confirm-submit";
 import { StatusBadge } from "@/components/status-badge";
+import { acceptBid } from "@/app/actions/bids";
 import type { GigBid } from "@/db/queries";
 import { formatRupees, initials, timeFromNow } from "@/lib/format";
 
@@ -18,8 +20,8 @@ export function FreelancerRating({ rating, reviewCount }: { rating: number; revi
   );
 }
 
-/** The gig owner's view of every bid on their gig. */
-export function BidList({ bids, budget }: { bids: GigBid[]; budget: number }) {
+/** The gig owner's view of every bid on their gig, with a Hire button while the gig is open. */
+export function BidList({ bids, budget, canHire }: { bids: GigBid[]; budget: number; canHire: boolean }) {
   if (bids.length === 0) {
     return (
       <div className="rounded-xl border border-dashed p-8 text-center">
@@ -73,6 +75,17 @@ export function BidList({ bids, budget }: { bids: GigBid[]; budget: number }) {
                     {bid.timeframeDays} {bid.timeframeDays === 1 ? "day" : "days"}
                   </span>
                   <span>Bid {timeFromNow(bid.createdAt)}</span>
+                  {canHire && bid.status === "PENDING" && (
+                    <form action={acceptBid.bind(null, bid.id)} className="ml-auto">
+                      <ConfirmSubmit
+                        size="sm"
+                        pendingLabel="Hiring…"
+                        confirm={`Hire ${bid.freelancer.name} for ${formatRupees(bid.amount)}? All other bids on this gig will be declined.`}
+                      >
+                        Hire {bid.freelancer.name}
+                      </ConfirmSubmit>
+                    </form>
+                  )}
                 </div>
               </CardContent>
             </Card>

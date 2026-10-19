@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
@@ -78,6 +78,41 @@ export async function placeBid(_prev: BidFormState, formData: FormData): Promise
   revalidatePath(`/gigs/${gigId}`);
   revalidatePath("/gigs");
   return {};
+}
+
+/**
+ * The "Hire" button (DA-2 sp_accept_bid): accept one bid, reject every other bid
+ * on the gig and move the gig to IN_PROGRESS — all in one transaction.
+ * Only the gig owner can hire, and only while the gig is open.
+ */
+export async function acceptBid(bidId: number) {
+  const user = await requireUser();
+
+  const gigId = db.transaction((tx) => {
+    const row = tx
+      .select({ gigId: bids.gigId, bidStatus: bids.status, gigStatus: gigs.status, clientId: gigs.clientId })
+      .from(bids)
+      .innerJoin(gigs, eq(gigs.id, bids.gigId))
+      .where(eq(bids.id, bidId))
+      .get();
+
+    if (!row || row.clientId !== user.id || row.gigStatus !== "OPEN" || row.bidStatus !== "PENDING") {
+      return null;
+    }
+
+    tx.update(bids).set({ status: "ACCEPTED" }).where(eq(bids.id, bidId)).run();
+    tx.update(bids)
+      .set({ status: "REJECTED" })
+      .where(and(eq(bids.gigId, row.gigId), ne(bids.id, bidId)))
+      .run();
+    tx.update(gigs).set({ status: "IN_PROGRESS" }).where(eq(gigs.id, row.gigId)).run();
+    return row.gigId;
+  });
+
+  if (gigId) {
+    revalidatePath(`/gigs/${gigId}`);
+    revalidatePath("/gigs");
+  }
 }
 
 /** A freelancer can take back a bid while it is still pending. */

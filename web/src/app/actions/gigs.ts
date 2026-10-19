@@ -1,10 +1,11 @@
 "use server";
 
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
-import { CATEGORIES, gigs } from "@/db/schema";
+import { bids, CATEGORIES, gigs } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 
 export type GigFormState = {
@@ -58,4 +59,30 @@ export async function createGig(_prev: GigFormState, formData: FormData): Promis
 
   revalidatePath("/gigs");
   redirect(`/gigs/${gig.id}`);
+}
+
+/** The owner can cancel a gig while it is still open; pending bids are rejected. */
+export async function cancelGig(gigId: number) {
+  const user = await requireUser();
+
+  const cancelled = db.transaction((tx) => {
+    const gig = tx
+      .update(gigs)
+      .set({ status: "CANCELLED" })
+      .where(and(eq(gigs.id, gigId), eq(gigs.clientId, user.id), eq(gigs.status, "OPEN")))
+      .returning({ id: gigs.id })
+      .get();
+    if (!gig) return false;
+
+    tx.update(bids)
+      .set({ status: "REJECTED" })
+      .where(and(eq(bids.gigId, gigId), eq(bids.status, "PENDING")))
+      .run();
+    return true;
+  });
+
+  if (cancelled) {
+    revalidatePath(`/gigs/${gigId}`);
+    revalidatePath("/gigs");
+  }
 }

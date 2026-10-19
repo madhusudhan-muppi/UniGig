@@ -115,3 +115,29 @@ export function getUserBid(gigId: number, userId: number) {
     .where(and(eq(bids.gigId, gigId), eq(bids.freelancerId, userId)))
     .get();
 }
+
+/** Name, email and phone of a user — only shown to the other side of a hire. */
+export function getContact(userId: number) {
+  return db
+    .select({ id: users.id, name: users.name, email: users.email, phone: users.phone })
+    .from(users)
+    .where(eq(users.id, userId))
+    .get();
+}
+
+export type Contact = NonNullable<ReturnType<typeof getContact>>;
+
+/** The accepted bid on a gig and the hired freelancer's contact details, if someone was hired. */
+export function getHire(gigId: number) {
+  return db
+    .select({
+      bidId: bids.id,
+      amount: bids.amount,
+      timeframeDays: bids.timeframeDays,
+      freelancer: { id: users.id, name: users.name, email: users.email, phone: users.phone },
+    })
+    .from(bids)
+    .innerJoin(users, eq(users.id, bids.freelancerId))
+    .where(and(eq(bids.gigId, gigId), eq(bids.status, "ACCEPTED")))
+    .get();
+}
