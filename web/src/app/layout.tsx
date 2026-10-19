@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Navbar } from "@/components/navbar";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -28,13 +28,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col antialiased`}
       >
-        <header className="border-b">
-          <div className="mx-auto flex h-14 max-w-5xl items-center px-4">
-            <Link href="/" className="text-lg font-bold tracking-tight">
-              Uni<span className="text-primary/60">Gig</span>
-            </Link>
-          </div>
-        </header>
+        <Navbar />
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
         <footer className="border-t py-6 text-center text-sm text-muted-foreground">
           UniGig — a campus freelance and skill exchange
